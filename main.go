@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -21,6 +22,8 @@ var (
 		OutputPath string           `help:"Where to write the output zip file." kong:"arg" default:"./dist"`
 		Template   string           `help:"Template to use for bootstrap file." default:"#!/bin/sh\nexec $LAMBDA_TASK_ROOT/{{ . }}"`
 	}
+
+	logger = log.New(io.Discard, "", log.LstdFlags)
 )
 
 type debugFlag bool
@@ -31,12 +34,9 @@ func (d debugFlag) BeforeApply(logger *log.Logger) error {
 }
 
 func main() {
-	logger := log.New(io.Discard, "", log.LstdFlags)
-
 	kong.Parse(&cli,
 		kong.Description("Packaging tool which builds Lambda deployment archives."),
 		kong.Bind(logger),
-		kong.Configuration(kong.JSON, ".lambdapack.json"),
 		kong.Vars{
 			"version": version,
 		},
@@ -49,73 +49,88 @@ func main() {
 		log.Fatal("failed to parse bootstrap template:", err)
 	}
 
-	// files, err := os.ReadDir(cli.BinPath)
 	files, err := filepath.Glob(cli.Binaries)
 	if err != nil {
 		log.Fatal("failed to read bin path:", err)
 	}
 
 	for _, file := range files {
-
-		fin, err := os.Stat(file)
+		err := packageFile(tpl, file)
 		if err != nil {
-			log.Fatal("failed to stat file:", err)
-		}
-
-		if fin.IsDir() {
-			continue
-		}
-
-		if strings.HasPrefix(fin.Name(), ".") {
-			continue
-		}
-
-		if strings.HasSuffix(fin.Name(), ".zip") {
-			// skip existing zip files
-			continue
-		}
-
-		logger.Println("Processing file:", fin.Name())
-
-		archivePath := filepath.Join(cli.OutputPath, fin.Name()+".zip")
-
-		logger.Println("Creating archive file:", archivePath)
-
-		archive, err := os.Create(archivePath)
-		if err != nil {
-			log.Fatal("failed to create archive:", err)
-		}
-
-		defer archive.Close()
-
-		zipWriter := zip.NewWriter(archive)
-
-		binf, err := os.Open(file)
-		if err != nil {
-			log.Fatal("failed to open file:", err)
-		}
-
-		defer binf.Close()
-
-		binw, err := zipWriter.Create(fin.Name())
-		if _, err := io.Copy(binw, binf); err != nil {
-			log.Fatal("failed to write file to archive:", err)
-		}
-
-		logger.Println("Writing bootstrap file")
-
-		bootw, err := zipWriter.Create("bootstrap")
-		if _, err := io.Copy(binw, binf); err != nil {
-			log.Fatal("failed to write file to archive:", err)
-		}
-
-		if err = tpl.Execute(bootw, filepath.Base(fin.Name())); err != nil {
-			log.Fatal("failed to write bootstrap file:", err)
-		}
-
-		logger.Println("Closing archive")
-		if err := zipWriter.Close(); err != nil {
-			log.Fatal("failed to close archive:", err)
+			log.Fatal("failed to package file:", err)
 		}
 	}
+}
+
+func packageFile(tpl *template.Template, file string) error {
+	fin, err := os.Stat(file)
+	if err != nil {
+		return fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	if fin.IsDir() {
+		return nil
+	}
+
+	if strings.HasPrefix(fin.Name(), ".") {
+		return nil
+	}
+
+	if strings.HasSuffix(fin.Name(), ".zip") {
+		// skip existing zip files
+		return nil
+	}
+
+	logger.Println("Processing file:", fin.Name())
+
+	archivePath := filepath.Join(cli.OutputPath, fin.Name()+".zip")
+
+	logger.Println("Creating archive file:", archivePath)
+
+	archive, err := os.Create(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to create archive: %w", err)
+	}
+
+	defer archive.Close()
+
+	zipWriter := zip.NewWriter(archive)
+
+	binf, err := os.Open(file)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+
+	defer binf.Close()
+
+	binw, err := zipWriter.Create(fin.Name())
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+
+	if _, err := io.Copy(binw, binf); err != nil {
+		return fmt.Errorf("failed to write file to archive: %w", err)
+	}
+
+	logger.Println("Writing bootstrap file")
+
+	bootw, err := zipWriter.Create("bootstrap")
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+
+	if _, err := io.Copy(binw, binf); err != nil {
+		return fmt.Errorf("failed to write file to archive: %w", err)
+	}
+
+	if err = tpl.Execute(bootw, filepath.Base(fin.Name())); err != nil {
+		return fmt.Errorf("failed to write bootstrap file: %w", err)
+	}
+
+	logger.Println("Closing archive")
+	if err := zipWriter.Close(); err != nil {
+		return fmt.Errorf("failed to close archive: %w", err)
+	}
+
+	return nil
 }
