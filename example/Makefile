@@ -1,16 +1,13 @@
 APPNAME = lambdapack-example
 
-export CGO_ENABLED=0
-export GOOS=linux
-export GOARCH=arm64
-
 .PHONY: default
 default: clean build archive package deploy
 
 .PHONY: build
 build:
 	@mkdir -p dist
-	@go build -ldflags "-s -w" -trimpath -o ./dist .
+	@CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+		go build -ldflags "-s -w" -trimpath -o ./dist .
 
 .PHONY: clean
 clean:
