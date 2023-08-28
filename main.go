@@ -119,15 +119,12 @@ func packageFile(tpl *template.Template, file string) error {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 
-	if _, err := io.Copy(binw, binf); err != nil {
-		return fmt.Errorf("failed to write file to archive: %w", err)
-	}
-
 	if err = tpl.Execute(bootw, filepath.Base(fin.Name())); err != nil {
 		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
 
 	logger.Println("Closing archive")
+
 	if err := zipWriter.Close(); err != nil {
 		return fmt.Errorf("failed to close archive: %w", err)
 	}
