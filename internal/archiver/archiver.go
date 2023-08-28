@@ -34,6 +34,8 @@ func PackageFile(ctx context.Context, bootstrapTemplate *template.Template, bina
 
 	defer binf.Close()
 
+	zerolog.Ctx(ctx).Debug().Str("name", binaryFile).Msg("Writing binary file")
+
 	binw, err := zipWriter.Create(binaryName)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)

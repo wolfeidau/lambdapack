@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"path"
 	"path/filepath"
 	"text/template"
 
@@ -20,6 +21,7 @@ var (
 		BinPath    string           `help:"Path containing binaries being packaged in zip files for lambda." kong:"arg" default:"./bin"`
 		OutputPath string           `help:"Where to write the output zip file." kong:"arg" default:"./dist"`
 		Template   string           `help:"Template to use for bootstrap file." default:"#!/bin/sh\nexec $LAMBDA_TASK_ROOT/{{ . }}"`
+		BinPattern string           `help:"Glob pattern to match binaries in bin path." default:"*"`
 	}
 )
 
@@ -36,14 +38,16 @@ func main() {
 		logger = logger.Level(zerolog.DebugLevel)
 	}
 
-	logger.Debug().Str("BinPath", cli.BinPath).Msg("Starting Lambda packaging")
+	binPattern := path.Join(cli.BinPath, cli.BinPattern)
+
+	logger.Debug().Str("binPattern", binPattern).Msg("Starting Lambda packaging")
 
 	bootstrapTemplate, err := template.New("bootstrap").Parse(cli.Template)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to parse bootstrap template")
 	}
 
-	files, err := binaries.Glob(cli.BinPath)
+	files, err := binaries.Glob(binPattern)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to read bin path")
 	}

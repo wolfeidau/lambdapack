@@ -15,7 +15,7 @@ clean:
 
 .PHONY: archive
 archive:
-	lambdapack --debug dist/* dist
+	lambdapack --debug dist dist
 
 .PHONY: package
 package:
