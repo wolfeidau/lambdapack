@@ -1,3 +1,5 @@
 .envrc
 dist/
 *.out.yaml
+coverage.txt
+lambdapack
