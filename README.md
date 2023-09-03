@@ -1,6 +1,6 @@
 # lambdapack
 
-This project provides a Go based CLI which builds archives for [AWS Lambda](https://aws.amazon.com/lambda/) functions, with the aim being to provide a simple way to migrate functions using `go1.x` lambda runtime to `provide.al2` by packaging existing binaries with a bootstrap script making it compatible with the newer runtime. 
+This project provides a Go based CLI which builds archives for [AWS Lambda](https://aws.amazon.com/lambda/) functions, with the aim being to provide a simple way to migrate functions using `go1.x` lambda runtime to `provide.al2` by packaging existing binaries with a bootstrap script making it compatible with the newer runtime and not require changes to their existing build process.
 
 For more details on the motivation and usage, please checkout my blog post on the deprecation of `go1.x` runtime [RIP AWS Go Lambda Runtime](https://www.wolfe.id.au/2023/08/09/rip-aws-go-lambda-runtime/?utm_source=github&utm_medium=lambdapack).
 
@@ -15,8 +15,10 @@ I built this CLI as a way to do the absolute minimum required to migrate existin
 
 The goal of this CLI is to provide a way to apply minimal changes to existing Go binaries and package them up in a way that is compatible with the newer `provide.al2` runtime without needing to refactor existing projects or build processes. To do this I add a small bootstrap script that runs the existing binary, whatever its name is, this removes the need to rename everything to bootstrap.
 
-This simple bootstrap script solution was suggested by @aidansteele, initially I discounted it, but alas after trialing SAM for a project I thought better of my choice and wrote this CLI.
-# Usage
+This simple bootstrap script solution was suggested by [@aidansteele](https://github.com/aidansteele) initially I discounted it, but after trialing SAM for a project I thought better of my choice and wrote this CLI.
+
+That said I love the SAM CLI and use it extensively for new projects, it is an excellent tool for deploying serverless applications. This CLI is just solving specific use case of packaging existing binaries with minimal changes, where developers are happy with their existing build processes.
+# Examples
 
 Current lambda projects will build one or more binaries using the name of the parent folder, this could be the project name, or if your using the `./cmd` pattern the name of the folder containing the main package(s).
 
@@ -32,7 +34,7 @@ bin
 
 Running the following command:
 ```
-lambdapack ./bin/* dist
+lambdapack --output ./dist ./bin/*
 ```
 
 This would build two zip archives:
@@ -54,6 +56,25 @@ Functions then reference these archives as follows.
       CodeUri: dist/example.zip
       Architectures:
         - arm64
+```
+
+# Usage
+
+```
+Usage: lambdapack <binaries> ...
+
+Packaging tool which builds Lambda deployment archives from a list of binaries.
+
+Arguments:
+  <binaries> ...
+
+Flags:
+  -h, --help               Show context-sensitive help.
+  -v, --version            Print the version and exit
+      --debug              Enable debug logging.
+      --output="./dist"    Directory path to write the output zip archives.
+      --template="#!/bin/sh\nexec $LAMBDA_TASK_ROOT/{{ . }}"
+                           Template to use for bootstrap file.
 ```
 
 # License

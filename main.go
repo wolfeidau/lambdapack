@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"path"
 	"path/filepath"
 	"text/template"
 
@@ -16,18 +15,17 @@ import (
 var (
 	version = "development"
 	cli     struct {
-		Version    kong.VersionFlag `help:"Print the version and exit" short:"v"`
-		Debug      bool             `help:"Enable debug logging."`
-		BinPath    string           `help:"Path containing binaries being packaged in zip files for lambda." kong:"arg" default:"./bin"`
-		OutputPath string           `help:"Where to write the output zip file." kong:"arg" default:"./dist"`
-		Template   string           `help:"Template to use for bootstrap file." default:"#!/bin/sh\nexec $LAMBDA_TASK_ROOT/{{ . }}"`
-		BinPattern string           `help:"Glob pattern to match binaries in bin path." default:"*"`
+		Version  kong.VersionFlag `help:"Print the version and exit" short:"v"`
+		Debug    bool             `help:"Enable debug logging."`
+		Binaries []string         `help:"Binaries being packaged in zip files for lambda." kong:"arg"`
+		Output   string           `help:"Directory path to write the output zip archives." default:"./dist"`
+		Template string           `help:"Template to use for bootstrap file." default:"#!/bin/sh\nexec $LAMBDA_TASK_ROOT/{{ . }}"`
 	}
 )
 
 func main() {
 	kong.Parse(&cli,
-		kong.Description("Packaging tool which builds Lambda deployment archives."),
+		kong.Description("Packaging tool which builds Lambda deployment archives from a list of binaries."),
 		kong.Vars{
 			"version": version,
 		},
@@ -38,26 +36,24 @@ func main() {
 		logger = logger.Level(zerolog.DebugLevel)
 	}
 
-	binPattern := path.Join(cli.BinPath, cli.BinPattern)
-
-	logger.Debug().Str("binPattern", binPattern).Msg("Starting Lambda packaging")
+	logger.Debug().Msg("Starting Lambda packaging")
 
 	bootstrapTemplate, err := template.New("bootstrap").Parse(cli.Template)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to parse bootstrap template")
 	}
 
-	files, err := binaries.Glob(binPattern)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to read bin path")
-	}
-
 	ctx := logger.WithContext(context.Background())
 
-	for _, binaryFile := range files {
+	filtered, err := binaries.Filter(cli.Binaries...)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to filter binaries")
+	}
+
+	for _, binaryFile := range filtered {
 
 		binaryName := filepath.Base(binaryFile)
-		archiveFile := filepath.Join(cli.OutputPath, binaryName+".zip")
+		archiveFile := filepath.Join(cli.Output, binaryName+".zip")
 
 		err = archiver.PackageFile(ctx, bootstrapTemplate, binaryFile, archiveFile)
 		if err != nil {
