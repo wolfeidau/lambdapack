@@ -2,7 +2,6 @@ package binaries
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +19,7 @@ func TestGlob(t *testing.T) {
 		tmpFile2, _ := os.CreateTemp(temDir, "test2")
 
 		// Call function
-		files, err := Glob(filepath.Join(temDir, "test*"))
+		files, err := Filter(tmpFile1.Name(), tmpFile2.Name())
 
 		// Validate results
 		require.NoError(t, err)
@@ -32,7 +31,7 @@ func TestGlob(t *testing.T) {
 		tmpDir, _ := os.MkdirTemp("", "testdir")
 
 		// Call function
-		files, err := Glob(tmpDir)
+		files, err := Filter(tmpDir)
 
 		// Validate results
 		require.NoError(t, err)

@@ -3,15 +3,10 @@ package binaries
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
-func Glob(path string) ([]string, error) {
-	files, err := filepath.Glob(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to glob path %s: %w", path, err)
-	}
+func Filter(files ...string) ([]string, error) {
 
 	filtered := make([]string, 0)
 
